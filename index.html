@@ -699,8 +699,8 @@
             <span id="modalLine" class="line-badge">---</span>
           </div>
           <div class="action-btn-row">
-            <button id="openLineBtn" class="action-btn btn-line disabled" type="button">複製並開啟 LINE</button>
-            <button id="copyLineBtn" class="action-btn btn-copy disabled" type="button">僅複製名稱</button>
+            <button id="openLineBtn" class="action-btn btn-line disabled" type="button">直接開啟 LINE 聯絡</button>
+            <button id="copyLineBtn" class="action-btn btn-copy disabled" type="button">複製名稱</button>
           </div>
         </div>
 
@@ -739,6 +739,40 @@
       prevDir1: "wh_monitor_prev_dir1_v1",
       prevDir2: "wh_monitor_prev_dir2_v1",
       prevUpdatedAt: "wh_monitor_prev_ts_v1"
+    };
+
+    // =========================================================================
+    // 公務機 LINE 專屬好友連結對照表（免搜尋、免貼上直達個人主頁）
+    // =========================================================================
+    const LINE_DIRECT_LINKS = {
+      "01": "https://line.me/ti/p/yGHKXQFsha",
+      "車巡01": "https://line.me/ti/p/yGHKXQFsha",
+      "02": "",
+      "車巡02": "",
+      "03": "",
+      "車巡03": "",
+      "04": "",
+      "車巡04": "",
+      "05": "",
+      "車巡05": "",
+      "06": "",
+      "車巡06": "",
+      "07": "",
+      "車巡07": "",
+      "08": "",
+      "車巡08": "",
+      "09": "",
+      "車巡09": "",
+      "10": "",
+      "車巡10": "",
+      "11": "",
+      "車巡11": "",
+      "12": "",
+      "車巡12": "",
+      "13": "",
+      "車巡13": "",
+      "領技01": "",
+      "領技02": ""
     };
 
     const state = {
@@ -883,6 +917,15 @@
     function buildTelHref(phoneText) {
       const dialable = String(phoneText || "").replace(/[^\d+*#,]/g, "");
       return dialable ? `tel:${dialable}` : "";
+    }
+
+    function resolveDirectLineUrl(lineIdOrName) {
+      const cleanName = String(lineIdOrName || "").trim();
+      if (!cleanName) return "";
+      if (cleanName.startsWith("http://") || cleanName.startsWith("https://")) {
+        return cleanName;
+      }
+      return LINE_DIRECT_LINKS[cleanName] || "";
     }
 
     function mergeHistoryDiff(prevList, curList, historyList) {
@@ -1071,7 +1114,7 @@
     }
 
     // =========================================================================
-    // 5. 聯絡彈窗與快捷動作（複製名稱並開啟 LINE / 撥打電話）
+    // 5. 聯絡彈窗與快捷動作（專屬直達連結 / 複製名稱並開啟 LINE / 撥打電話）
     // =========================================================================
     function setButtonEnabled(el, enabled) {
       el.classList.toggle("disabled", !enabled);
@@ -1093,6 +1136,9 @@
       const copyPhoneBtn = document.getElementById("copyPhoneBtn");
 
       const hasLine = Boolean(lineVal);
+      const hasDirectUrl = Boolean(resolveDirectLineUrl(lineVal));
+      openLineBtn.textContent = hasDirectUrl ? "直接開啟 LINE 聯絡" : "複製並開啟 LINE";
+
       setButtonEnabled(openLineBtn, hasLine);
       setButtonEnabled(copyLineBtn, hasLine);
 
@@ -1109,21 +1155,27 @@
       document.getElementById("infoModalOverlay").classList.remove("open");
     }
 
-    // 【修改重點】自動複製好友名稱，並直接回到 LINE 聊天列表（不再跳轉搜尋 ID 畫面）
     async function openLineContact() {
       const friendName = String(state.activeContact.lineId || "").trim();
       if (!friendName) return;
 
-      // 1. 先將好友名稱（例如：車巡07）複製到剪貼簿
-      await copyText(friendName, `已複製「${friendName}」，請貼上搜尋`);
+      // 1. 檢查是否已設定專屬直達連結（例如 01 / 車巡01）
+      const directUrl = resolveDirectLineUrl(friendName);
+      if (directUrl) {
+        if (window.liff && typeof liff.isInClient === "function" && liff.isInClient()) {
+          liff.openWindow({ url: directUrl, external: false });
+        } else {
+          window.open(directUrl, "_blank", "noopener");
+        }
+        return;
+      }
 
-      // 2. 直接開啟 LINE 聊天主畫面
-      const chatHomeUrl = "https://line.me/R/nv/chat";
+      // 2. 尚未設定專屬連結的備援：自動複製名稱並跳至 LINE 聊天總列表
+      await copyText(friendName, `已複製「${friendName}」，請貼上搜尋`);
       if (window.liff && typeof liff.isInClient === "function" && liff.isInClient()) {
-        // 在 LINE 內開啟時，直接關閉 LIFF 視窗回到聊天室列表最順手
-        liff.closeWindow();
+        window.location.href = "line://nv/chat";
       } else {
-        window.location.href = chatHomeUrl;
+        window.location.href = "https://line.me/R/nv/chat";
       }
     }
 
