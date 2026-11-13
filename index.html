@@ -587,7 +587,7 @@
         class="search-input"
         type="search"
         inputmode="search"
-        placeholder="輸入車號、人員或 LINE ID 快速查找..."
+        placeholder="輸入車號、人員或 LINE 名稱快速查找..."
         autocomplete="off"
       >
       <button id="searchClearBtn" class="search-clear-btn" type="button" aria-label="清除搜尋">&times;</button>
@@ -692,15 +692,15 @@
       </div>
 
       <div class="contact-card">
-        <!-- LINE ID 區塊 -->
+        <!-- LINE 名稱 / ID 區塊 -->
         <div class="contact-item">
           <div class="contact-label-row">
-            <span class="contact-label">LINE ID</span>
+            <span class="contact-label">LINE 好友名稱</span>
             <span id="modalLine" class="line-badge">---</span>
           </div>
           <div class="action-btn-row">
-            <button id="openLineBtn" class="action-btn btn-line disabled" type="button">開啟 LINE</button>
-            <button id="copyLineBtn" class="action-btn btn-copy disabled" type="button">複製 LINE ID</button>
+            <button id="openLineBtn" class="action-btn btn-line disabled" type="button">複製並開啟 LINE</button>
+            <button id="copyLineBtn" class="action-btn btn-copy disabled" type="button">僅複製名稱</button>
           </div>
         </div>
 
@@ -723,7 +723,7 @@
 
   <script>
     // =========================================================================
-    // 1. 基本設定（上架 LINE Developers 後請填入您的 LIFF ID）
+    // 1. 基本設定
     // =========================================================================
     const LIFF_ID = "2012605921-JpmplZR0";
     const API_URL = "https://script.google.com/macros/s/AKfycbzOvqIMw7X4fTKZayRE-cn-9xywUX507ggR1oqSQZhH7w_WjWwTnwd7F5RPYqHatEcz/exec";
@@ -731,7 +731,6 @@
     const SYNC_INTERVAL_MS = 10000;
     const FETCH_TIMEOUT_MS = 8000;
     const MAX_HISTORY_COUNT = 6;
-    // 若手機相隔超過 2 小時才重新打開，僅還原已存的歷史清單，不將前次舊車次誤判為剛離站
     const PREV_BASELINE_TTL_MS = 2 * 60 * 60 * 1000;
 
     const STORAGE_KEYS = {
@@ -787,7 +786,6 @@
         const savedP2 = safeReadJson(STORAGE_KEYS.prevDir2, []);
         state.prevDir1 = Array.isArray(savedP1) ? savedP1 : [];
         state.prevDir2 = Array.isArray(savedP2) ? savedP2 : [];
-        // 已有近期基準時，第一次抓取即可直接比對是否有車次於關閉期間離線
         if (state.prevDir1.length > 0 || state.prevDir2.length > 0) {
           state.isFirstFetch = false;
         }
@@ -875,21 +873,11 @@
           lineVal = parts[0];
           phoneVal = parts.slice(1).join(" ");
         } else if (parts.length === 1 && parts[0]) {
-          // 修正：允許含有連字號、加號等常見電話符號
           if (/^[\d\-+#()]+$/.test(parts[0])) phoneVal = parts[0];
           else lineVal = parts[0];
         }
       }
       return { lineVal, phoneVal };
-    }
-
-    function buildLineProfileUrl(lineId) {
-      const cleanId = String(lineId || "").trim();
-      if (!cleanId) return "";
-      if (cleanId.startsWith("@")) {
-        return `https://line.me/R/ti/p/${encodeURIComponent(cleanId)}`;
-      }
-      return `https://line.me/ti/p/~${encodeURIComponent(cleanId.replace(/^~/, ""))}`;
     }
 
     function buildTelHref(phoneText) {
@@ -1047,7 +1035,6 @@
         if (isMatch) matchedCount++;
       });
 
-      // 待命接車欄位若有文字符合，也保留該卡片顯示
       const extraMatched = Boolean(query) && extraTexts.some(t => t.toLowerCase().includes(query));
       const shouldHide = Boolean(query) && matchedCount === 0 && !extraMatched;
       cardEl.classList.toggle("hidden-by-filter", shouldHide);
@@ -1084,7 +1071,7 @@
     }
 
     // =========================================================================
-    // 5. 聯絡彈窗與快捷動作（開啟 LINE / 複製 / 撥打電話）
+    // 5. 聯絡彈窗與快捷動作（複製名稱並開啟 LINE / 撥打電話）
     // =========================================================================
     function setButtonEnabled(el, enabled) {
       el.classList.toggle("disabled", !enabled);
@@ -1122,17 +1109,21 @@
       document.getElementById("infoModalOverlay").classList.remove("open");
     }
 
-    function openLineContact() {
-      const lineId = state.activeContact.lineId;
-      if (!lineId) return;
-      const targetUrl = buildLineProfileUrl(lineId);
-      if (!targetUrl) return;
+    // 【修改重點】自動複製好友名稱，並直接回到 LINE 聊天列表（不再跳轉搜尋 ID 畫面）
+    async function openLineContact() {
+      const friendName = String(state.activeContact.lineId || "").trim();
+      if (!friendName) return;
 
+      // 1. 先將好友名稱（例如：車巡07）複製到剪貼簿
+      await copyText(friendName, `已複製「${friendName}」，請貼上搜尋`);
+
+      // 2. 直接開啟 LINE 聊天主畫面
+      const chatHomeUrl = "https://line.me/R/nv/chat";
       if (window.liff && typeof liff.isInClient === "function" && liff.isInClient()) {
-        // 在 LINE 內透過內部視窗觸發個人檔案跳轉，關閉後可直接回到監控列表
-        liff.openWindow({ url: targetUrl, external: false });
+        // 在 LINE 內開啟時，直接關閉 LIFF 視窗回到聊天室列表最順手
+        liff.closeWindow();
       } else {
-        window.open(targetUrl, "_blank", "noopener");
+        window.location.href = chatHomeUrl;
       }
     }
 
@@ -1201,9 +1192,8 @@
         
         clearTimeout(timeoutId);
 
-        // 防呆：如果 Apps Script 發生錯誤回傳了 404/500 等網頁，這裡先阻斷避免 json 解析當機
         if (!res.ok) {
-           throw new Error(`HTTP Error: ${res.status}`);
+          throw new Error(`HTTP Error: ${res.status}`);
         }
 
         const json = await res.json();
@@ -1291,13 +1281,12 @@
 
       document.getElementById("openLineBtn").addEventListener("click", openLineContact);
       document.getElementById("copyLineBtn").addEventListener("click", () => {
-        copyText(state.activeContact.lineId, `已複製 LINE ID：${state.activeContact.lineId}`);
+        copyText(state.activeContact.lineId, `已複製名稱：${state.activeContact.lineId}`);
       });
       document.getElementById("copyPhoneBtn").addEventListener("click", () => {
         copyText(state.activeContact.phone, `已複製手機號碼：${state.activeContact.phone}`);
       });
 
-      // 手機切回前景時立即抓取最新資料
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
           fetchSheetData(false);
