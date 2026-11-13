@@ -759,8 +759,8 @@
       "車巡06": "",
       "07": "",
       "車巡07": "",
-      "08": "",
-      "車巡08": "",
+      "08": "https://line.me/ti/p/eyZaGmV-rT",
+      "車巡08": "https://line.me/ti/p/eyZaGmV-rT",
       "09": "",
       "車巡09": "",
       "10": "",
@@ -1159,7 +1159,7 @@
       const friendName = String(state.activeContact.lineId || "").trim();
       if (!friendName) return;
 
-      // 1. 檢查是否已設定專屬直達連結（例如 01 / 車巡01）
+      // 1. 檢查是否已設定專屬直達連結（例如 01 / 車巡01 / 08 / 車巡08）
       const directUrl = resolveDirectLineUrl(friendName);
       if (directUrl) {
         if (window.liff && typeof liff.isInClient === "function" && liff.isInClient()) {
