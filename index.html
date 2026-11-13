@@ -875,7 +875,8 @@
           lineVal = parts[0];
           phoneVal = parts.slice(1).join(" ");
         } else if (parts.length === 1 && parts[0]) {
-          if (/^\d+$/.test(parts[0])) phoneVal = parts[0];
+          // 修正：允許含有連字號、加號等常見電話符號
+          if (/^[\d\-+#()]+$/.test(parts[0])) phoneVal = parts[0];
           else lineVal = parts[0];
         }
       }
@@ -1191,19 +1192,20 @@
         const sep = API_URL.includes("?") ? "&" : "?";
         const fetchUrl = `${API_URL}${sep}t=${Date.now()}&r=${Math.random().toString(36).substring(2, 8)}&nocache=1`;
 
-        let res;
-        try {
-          res = await fetch(fetchUrl, {
-            method: "GET",
-            cache: "no-store",
-            redirect: "follow",
-            signal: controller.signal
-          });
-        } catch (innerErr) {
-          res = await fetch(fetchUrl, { signal: controller.signal });
+        const res = await fetch(fetchUrl, {
+          method: "GET",
+          cache: "no-store",
+          redirect: "follow",
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
+        // 防呆：如果 Apps Script 發生錯誤回傳了 404/500 等網頁，這裡先阻斷避免 json 解析當機
+        if (!res.ok) {
+           throw new Error(`HTTP Error: ${res.status}`);
         }
 
-        clearTimeout(timeoutId);
         const json = await res.json();
         const resultData = (json && json.result) ? json.result : json;
 
@@ -1222,9 +1224,6 @@
         clearTimeout(timeoutId);
         console.warn("抓取試算表失敗:", err);
         setSyncStatus("error", "連線失敗，稍後重試");
-        if (!state.latestSheetData) {
-          setTimeout(() => fetchSheetData(false), 3000);
-        }
       } finally {
         state.isFetching = false;
       }
