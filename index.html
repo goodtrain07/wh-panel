@@ -746,31 +746,23 @@
     // =========================================================================
     const LINE_DIRECT_LINKS = {
       "01": "https://line.me/ti/p/yGHKXQFsha",
-      "車巡01": "https://line.me/ti/p/yGHKXQFsha",
-      "02": "",
-      "車巡02": "",
+      "02": "https://line.me/ti/p/udsJpxn9Ce",
       "03": "",
-      "車巡03": "",
-      "04": "",
-      "車巡04": "",
-      "05": "",
-      "車巡05": "",
-      "06": "",
-      "車巡06": "",
-      "07": "",
-      "車巡07": "",
+      "04": "https://line.me/ti/p/3f7AmBE5vP",
+      "05": "https://line.me/ti/p/UfbpCVnEL-",
+      "06": "https://line.me/ti/p/cTdNdeBJFm",
+      "07": "https://line.me/ti/p/JNgn9AhFTH",
       "08": "https://line.me/ti/p/eyZaGmV-rT",
-      "車巡08": "https://line.me/ti/p/eyZaGmV-rT",
-      "09": "",
-      "車巡09": "",
-      "10": "",
-      "車巡10": "",
-      "11": "",
-      "車巡11": "",
-      "12": "",
-      "車巡12": "",
-      "13": "",
-      "車巡13": "",
+      "09": "https://line.me/ti/p/W476hYyegP",
+      "10": "https://line.me/ti/p/YcDkLj9rSh",
+      "11": "https://line.me/ti/p/kkKrVEfJkH",
+      "12": "https://line.me/ti/p/LhaA8tLK-J",
+      "13": "https://line.me/ti/p/yMt6EK8tV-",
+      "14": "",
+      "15": "https://line.me/ti/p/TjeZc_w4Df",
+      "16": "https://line.me/ti/p/P4M3tv_7RD",
+      "17": "https://line.me/ti/p/kgaySWWFwM",
+      "18": "https://line.me/ti/p/jSZRgh3BV7",
       "領技01": "",
       "領技02": ""
     };
@@ -925,7 +917,16 @@
       if (cleanName.startsWith("http://") || cleanName.startsWith("https://")) {
         return cleanName;
       }
-      return LINE_DIRECT_LINKS[cleanName] || "";
+      if (LINE_DIRECT_LINKS[cleanName]) {
+        return LINE_DIRECT_LINKS[cleanName];
+      }
+      // 支援「車巡1」「車巡01」「1」「01」等格式自動補零對應
+      const stripped = cleanName.replace(/^車巡/, "").trim();
+      if (/^\d+$/.test(stripped)) {
+        const padded = stripped.padStart(2, "0");
+        return LINE_DIRECT_LINKS[padded] || LINE_DIRECT_LINKS[stripped] || "";
+      }
+      return "";
     }
 
     function mergeHistoryDiff(prevList, curList, historyList) {
@@ -1159,7 +1160,7 @@
       const friendName = String(state.activeContact.lineId || "").trim();
       if (!friendName) return;
 
-      // 1. 檢查是否已設定專屬直達連結（例如 01 / 車巡01 / 08 / 車巡08）
+      // 1. 檢查是否已設定專屬直達連結
       const directUrl = resolveDirectLineUrl(friendName);
       if (directUrl) {
         if (window.liff && typeof liff.isInClient === "function" && liff.isInClient()) {
