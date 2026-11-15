@@ -742,12 +742,12 @@
     };
 
     // =========================================================================
-    // 公務機 LINE 專屬好友連結對照表（免搜尋、免貼上直達個人主頁）
+    // 公務機 LINE 專屬好友連結對照表（01~18 及領技01、領技02 全數完成）
     // =========================================================================
     const LINE_DIRECT_LINKS = {
       "01": "https://line.me/ti/p/yGHKXQFsha",
       "02": "https://line.me/ti/p/udsJpxn9Ce",
-      "03": "",
+      "03": "https://line.me/ti/p/eTUm-Gzvzf",
       "04": "https://line.me/ti/p/3f7AmBE5vP",
       "05": "https://line.me/ti/p/UfbpCVnEL-",
       "06": "https://line.me/ti/p/cTdNdeBJFm",
@@ -758,13 +758,13 @@
       "11": "https://line.me/ti/p/kkKrVEfJkH",
       "12": "https://line.me/ti/p/LhaA8tLK-J",
       "13": "https://line.me/ti/p/yMt6EK8tV-",
-      "14": "",
+      "14": "https://line.me/ti/p/9c6W8ujRU7",
       "15": "https://line.me/ti/p/TjeZc_w4Df",
       "16": "https://line.me/ti/p/P4M3tv_7RD",
       "17": "https://line.me/ti/p/kgaySWWFwM",
       "18": "https://line.me/ti/p/jSZRgh3BV7",
       "領技01": "https://line.me/ti/p/yGHKXQFsha",
-      "領技02": "https://line.me/ti/p/udsJpxn9Ce",
+      "領技02": "https://line.me/ti/p/udsJpxn9Ce"
     };
 
     const state = {
@@ -920,8 +920,8 @@
       if (LINE_DIRECT_LINKS[cleanName]) {
         return LINE_DIRECT_LINKS[cleanName];
       }
-      // 支援「車巡1」「車巡01」「1」「01」等格式自動補零對應
-      const stripped = cleanName.replace(/^車巡/, "").trim();
+      // 支援「車巡1」「車巡01」「領技1」「領技01」「1」「01」等格式自動補零對應
+      const stripped = cleanName.replace(/^(車巡|領技)/, "").trim();
       if (/^\d+$/.test(stripped)) {
         const padded = stripped.padStart(2, "0");
         return LINE_DIRECT_LINKS[padded] || LINE_DIRECT_LINKS[stripped] || "";
@@ -1125,7 +1125,16 @@
       document.getElementById("modalMain").textContent = mainText || "---";
       document.getElementById("modalSection").textContent = sectionText || "---";
 
-      const { lineVal, phoneVal } = parseContactInfo(phoneText);
+      let { lineVal, phoneVal } = parseContactInfo(phoneText);
+
+      // 若為指揮官列（phoneText 為空），自動從主文字偵測「領技01 / 領技02 / 車巡XX」
+      if (!lineVal && mainText) {
+        const roleMatch = String(mainText).match(/(領技\s*\d+|車巡\s*\d+)/);
+        if (roleMatch) {
+          lineVal = roleMatch[1].replace(/\s+/g, "");
+        }
+      }
+
       state.activeContact = { lineId: lineVal, phone: phoneVal };
 
       document.getElementById("modalLine").textContent = lineVal || "---";
@@ -1171,7 +1180,7 @@
         return;
       }
 
-      // 2. 尚未設定專屬連結的備援：自動複製名稱並跳至 LINE 聊天總列表
+      // 2. 備援：自動複製名稱並跳至 LINE 聊天總列表
       await copyText(friendName, `已複製「${friendName}」，請貼上搜尋`);
       if (window.liff && typeof liff.isInClient === "function" && liff.isInClient()) {
         window.location.href = "line://nv/chat";
