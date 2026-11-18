@@ -984,7 +984,7 @@
       }
       list.forEach(item => {
         const row = createDataRow(item, sectionText);
-        if (String(item.main || "").trim().length >= 8) {
+        if (String(item.main || "").trim().length >= 10) {
           row.querySelector(".data-main")?.classList.add("is-long-text");
         }
         container.appendChild(row);
